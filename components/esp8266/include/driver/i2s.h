@@ -52,14 +52,11 @@ typedef enum {
  * @brief I2S channel format type
  */
 typedef enum {
-    I2S_CHANNEL_FMT_RIGHT_LEFT = 0x00, //будет чередовать правый и левый канал счередованием внутри 32бит блока  "Пк" -16бит + "Лк"-16бит =32 бит dma блок 
-    // "Пк"-24бит =32 бит dma блок +"Лк"-24бит =32 бит dma блок
-    I2S_CHANNEL_FMT_ALL_RIGHT, //будет чередовать правый и левый канал  "Пк" -16бит + "Лк"-16бит =32 бит dma блок 
-     // "Пк"-24бит =32 бит dma блок +"Лк"-24бит =32 бит dma блок
-    I2S_CHANNEL_FMT_ALL_LEFT, //будет чередовать левый и правый канал  "Лк" -16бит + "Пк"-16бит =32 бит dma блок 
-     // "Лк"-24бит =32 бит dma блок +"Пк"-24бит =32 бит dma блок
-    I2S_CHANNEL_FMT_ONLY_RIGHT,// только правый канал при 16 бит запакует два 16 бит семпла в 32 бит блок dma, при 24 бит один сэмпл засунет в 32 бит  блок dma
-    I2S_CHANNEL_FMT_ONLY_LEFT,// только левый канал при 16 бит запакует два 16 бит семпла в 32 бит блок dma, при 24 бит один сэмпл засунет в 32 бит  блок dma
+    I2S_CHANNEL_FMT_RIGHT_LEFT = 0x00,
+    I2S_CHANNEL_FMT_ALL_RIGHT,
+    I2S_CHANNEL_FMT_ALL_LEFT,
+    I2S_CHANNEL_FMT_ONLY_RIGHT,
+    I2S_CHANNEL_FMT_ONLY_LEFT,
 } i2s_channel_fmt_t;
 
 /**
