@@ -49,7 +49,7 @@ extern void rom_i2c_writeReg_Mask(int block, int host_id, int reg_add, int msb, 
  * register writes, breaking I2S peripheral initialization sequence.
  * The peripheral hardware requires strict ordering: reset → configure → enable.
  * At -Og these writes happen in separate functions (no reordering possible).
- * At -O2 the compiler inlines everything and freely reorders, breaking I2S. */
+ * At -Os/-Ox the compiler inlines everything and freely reorders, breaking I2S. */
 #define I2S_MEMW() __asm__ __volatile__("memw" ::: "memory")
 
 #define I2S_CHECK(a, str, ret_val)                                    \
@@ -1464,8 +1464,9 @@ esp_err_t i2s_driver_uninstall(i2s_port_t i2s_num)
 
     dma_intr_register(NULL, NULL);
 
-    /* Disable BBPLL audio clock output — symmetric with i2s_driver_install() */
-    rom_i2c_writeReg_Mask(0x67, 4, 4, 7, 7, 0);
+    /* Disable BBPLL audio clock output
+   rom_i2c_writeReg_Mask(0x67, 4, 4, 7, 7, 0);
+   you can’t do this here, it can break other peripherals when uninstalling*/
 
     if (p_i2s_obj[i2s_num]->tx != NULL && p_i2s_obj[i2s_num]->mode & I2S_MODE_TX)
     {
