@@ -959,6 +959,7 @@ esp_err_t i2s_set_clk(i2s_port_t i2s_num, uint32_t rate, i2s_bits_per_sample_t b
         }
         I2S[i2s_num]->conf_chan.tx_chan_mod = tx_chan_mod;
         I2S[i2s_num]->conf_chan.rx_chan_mod = rx_chan_mod;
+        I2S_MEMW(); // FIX: ensure channel/fifo config flushes before continuing
     }
 
     // ----- Determine whether DMA buffers must be rebuilt -----
@@ -1007,6 +1008,8 @@ esp_err_t i2s_set_clk(i2s_port_t i2s_num, uint32_t rate, i2s_bits_per_sample_t b
                 rx_new = 5;
             I2S[i2s_num]->fifo_conf.tx_fifo_mod = tx_new;
             I2S[i2s_num]->fifo_conf.rx_fifo_mod = rx_new;
+
+            I2S_MEMW(); // FIX: ensure fifo mode change completes before rebuilding DMA
 
             p_i2s_obj[i2s_num]->bits_per_sample = bits;
             p_i2s_obj[i2s_num]->bytes_per_sample = (bits == I2S_BITS_PER_SAMPLE_16BIT) ? 2 : 4;
@@ -1184,9 +1187,9 @@ static esp_err_t i2s_param_config(i2s_port_t i2s_num, const i2s_config_t *i2s_co
     p_i2s_obj[i2s_num]->dma->rx_dscr_conf.rx_fill_en = 0;
     p_i2s_obj[i2s_num]->dma->rx_dscr_conf.token_no_replace = 1;
     p_i2s_obj[i2s_num]->dma->rx_dscr_conf.infor_no_replace = 1;
-
+    I2S_MEMW(); // FIX: ensure DMA config completes before disconnecting
     I2S[i2s_num]->fifo_conf.dscr_en = 0;
-
+    I2S_MEMW(); // FIX: ensure DMA is disconnected before changing FIFO/chan config
     // FIX N5: cf -> chan_mod mapping per TRM §10.2.1.4. The previous formula
     // `cf < ONLY_RIGHT ? cf : (cf >> 1)` collapsed cf=3 (ONLY_RIGHT) to
     // chan_mod=1 (ALL_RIGHT) and cf=4 (ONLY_LEFT) to chan_mod=2 (ALL_LEFT),
@@ -1463,6 +1466,28 @@ esp_err_t i2s_driver_uninstall(i2s_port_t i2s_num)
     i2s_stop(i2s_num);
 
     dma_intr_register(NULL, NULL);
+
+    /* FIX: Reset both I2S peripheral and SLC DMA to force immediate abort.
+     * tx_link.stop=1 only requests soft stop. Hardware reset guarantees
+     * DMA is idle before we free buffers. Same registers as i2s_start(). */
+
+    // 1. Stop I2S peripheral (stop sending DMA requests)
+    I2S[i2s_num]->conf.val &= ~(I2S_I2S_TX_START | I2S_I2S_RX_START);
+    I2S_MEMW();
+    I2S[i2s_num]->conf.tx_reset = 1;
+    I2S[i2s_num]->conf.tx_reset = 0;
+    I2S[i2s_num]->conf.rx_reset = 1;
+    I2S[i2s_num]->conf.rx_reset = 0;
+
+    I2S_MEMW();
+
+    // 2. Reset SLC DMA (force-abort current descriptor)
+    SLC0.conf0.tx_rst = 1;
+    SLC0.conf0.tx_rst = 0;
+    SLC0.conf0.rx_rst = 1;
+    SLC0.conf0.rx_rst = 0;
+
+    I2S_MEMW();
 
     /* Disable BBPLL audio clock output
    rom_i2c_writeReg_Mask(0x67, 4, 4, 7, 7, 0);
