@@ -1470,10 +1470,6 @@ esp_err_t i2s_driver_uninstall(i2s_port_t i2s_num)
 
     dma_intr_register(NULL, NULL);
 
-    /* FIX: Reset both I2S peripheral and SLC DMA to force immediate abort.
-     * tx_link.stop=1 only requests soft stop. Hardware reset guarantees
-     * DMA is idle before we free buffers. Same registers as i2s_start(). */
-
     // 1. Stop I2S peripheral (stop sending DMA requests)
     I2S[i2s_num]->conf.tx_reset = 1;
     I2S[i2s_num]->conf.tx_reset = 0;
