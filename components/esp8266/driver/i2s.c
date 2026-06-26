@@ -603,17 +603,19 @@ esp_err_t i2s_stop(i2s_port_t i2s_num)
     if (p_i2s_obj[i2s_num]->mode & I2S_MODE_TX)
     {
         p_i2s_obj[i2s_num]->dma->rx_link.stop = 1;
+        I2S_MEMW();
         i2s_disable_tx_intr(i2s_num);
     }
 
     if (p_i2s_obj[i2s_num]->mode & I2S_MODE_RX)
     {
         p_i2s_obj[i2s_num]->dma->tx_link.stop = 1;
+        I2S_MEMW();
         i2s_disable_rx_intr(i2s_num);
     }
 
     I2S[i2s_num]->conf.val &= ~(I2S_I2S_TX_START | I2S_I2S_RX_START);
-
+    I2S_MEMW();
     // FIX U2: drain any pending descriptors before clearing int_st.
     // After dma_intr_disable(), the ISR can no longer fire for any descriptor
     // that has just completed. Without this drain, those descriptors' buf_ptrs
@@ -624,6 +626,7 @@ esp_err_t i2s_stop(i2s_port_t i2s_num)
     i2s_drain_pending_descriptors(i2s_num);
 
     p_i2s_obj[i2s_num]->dma->int_clr.val = p_i2s_obj[i2s_num]->dma->int_st.val; // clear pending interrupt
+    I2S_MEMW();
     I2S_EXIT_CRITICAL();
     return ESP_OK;
 }
@@ -1472,8 +1475,6 @@ esp_err_t i2s_driver_uninstall(i2s_port_t i2s_num)
      * DMA is idle before we free buffers. Same registers as i2s_start(). */
 
     // 1. Stop I2S peripheral (stop sending DMA requests)
-    I2S[i2s_num]->conf.val &= ~(I2S_I2S_TX_START | I2S_I2S_RX_START);
-    I2S_MEMW();
     I2S[i2s_num]->conf.tx_reset = 1;
     I2S[i2s_num]->conf.tx_reset = 0;
     I2S[i2s_num]->conf.rx_reset = 1;
