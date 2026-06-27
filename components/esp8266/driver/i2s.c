@@ -36,12 +36,14 @@
 #include "esp_libc.h"
 #include "esp_heap_caps.h"
 #include "driver/i2s.h"
+#include "esp_wifi_types.h"
+#include "esp_wifi.h"
 
 static const char *I2S_TAG = "i2s";
 
 /* BBPLL audio clock enable — required by TRM §10.2.1.2 before I2S can operate.
  * The SDK's i2s_driver_install() was missing this, causing BCK/WS to stay LOW. */
-extern void rom_i2c_writeReg_Mask(int block, int host_id, int reg_add, int msb, int lsb, int indata);
+extern void rom_i2c_writeReg_Mask(uint8_t block, uint8_t host_id, uint8_t reg_add, uint8_t msb, uint8_t lsb, uint8_t indata);
 
 /* Memory barrier for peripheral register access.
  * Xtensa LX106 'memw' instruction guarantees all prior memory writes complete
@@ -1568,9 +1570,12 @@ esp_err_t i2s_driver_install(i2s_port_t i2s_num, const i2s_config_t *i2s_config,
         dma_intr_register(i2s_intr_handler_default, p_i2s_obj[i2s_num]);
         /* Enable BBPLL audio clock output — TRM §10.2.1.2:
          * "To start the I2S module, firstly you need to provide a running clock" */
-        rom_i2c_writeReg_Mask(0x67, 4, 4, 7, 7, 1);
-        I2S_MEMW(); // ensure BBPLL enable completes before I2S config
 
+        if (esp_wifi_get_state() == WIFI_STATE_DEINIT)
+        {
+            rom_i2c_writeReg_Mask(0x67, 4, 4, 7, 7, 1);
+            I2S_MEMW(); // ensure BBPLL enable completes before I2S config
+        }
         i2s_stop(i2s_num);
 
         err = i2s_param_config(i2s_num, i2s_config);
